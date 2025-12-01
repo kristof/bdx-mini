@@ -5,6 +5,7 @@ Find the offsets to set in self.joints_offsets in hwi_feetech_pwm_control.py
 from mini_bdx_runtime.rustypot_position_hwi import HWI
 from mini_bdx_runtime.duck_config import DuckConfig
 import time
+import json
 
 dummy_config = DuckConfig(config_json_path=None, ignore_default=True)
 
@@ -78,6 +79,10 @@ try:
 
     print("Done ! ")
     print("Now you can copy the offsets in your duck_config.json")
+    print("")
+    print("=== JSON for duck_config.json ===")
+    print(json.dumps({"joints_offsets": hwi.joints_offsets}, indent=2))
+    print("=================================")
 
 
 except KeyboardInterrupt:

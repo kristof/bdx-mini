@@ -7,7 +7,6 @@ from mini_bdx_runtime.rustypot_position_hwi import HWI
 from mini_bdx_runtime.onnx_infer import OnnxInfer
 
 from mini_bdx_runtime.raw_imu import Imu
-from mini_bdx_runtime.poly_reference_motion import PolyReferenceMotion
 from mini_bdx_runtime.xbox_controller import XBoxController
 from mini_bdx_runtime.feet_contacts import FeetContacts
 from mini_bdx_runtime.eyes import Eyes
@@ -103,9 +102,12 @@ class RLWalk:
         if self.commands:
             self._try_connect_controller()
 
-        # Reference motion, but we only really need the length of one phase
-        # TODO
-        self.PRM = PolyReferenceMotion("./polynomial_coefficients.pkl")
+        # Load only the phase period from reference motion data
+        with open("./polynomial_coefficients.pkl", "rb") as f:
+            ref_data = pickle.load(f)
+            first_key = next(iter(ref_data))
+            self.nb_steps_in_period = int(ref_data[first_key]["period"] * ref_data[first_key]["fps"])
+
         self.imitation_i = 0
         self.imitation_phase = np.array([0, 0])
         self.phase_frequency_factor = 1.0
@@ -316,14 +318,14 @@ class RLWalk:
                 self.imitation_i += 1 * (
                     self.phase_frequency_factor + self.phase_frequency_factor_offset
                 )
-                self.imitation_i = self.imitation_i % self.PRM.nb_steps_in_period
+                self.imitation_i = self.imitation_i % self.nb_steps_in_period
                 self.imitation_phase = np.array(
                     [
-                        np.cos(
-                            self.imitation_i / self.PRM.nb_steps_in_period * 2 * np.pi
-                        ),
                         np.sin(
-                            self.imitation_i / self.PRM.nb_steps_in_period * 2 * np.pi
+                            self.imitation_i / self.nb_steps_in_period * 2 * np.pi
+                        ),
+                        np.cos(
+                            self.imitation_i / self.nb_steps_in_period * 2 * np.pi
                         ),
                     ]
                 )

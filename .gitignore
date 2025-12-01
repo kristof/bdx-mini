@@ -44,5 +44,5 @@ dist/
 .eggs/
 
 # Mujoco
-*.onnx
+training/*.onnx
 mujoco_saved_obs.pkl

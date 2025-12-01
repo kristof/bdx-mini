@@ -45,3 +45,4 @@ dist/
 
 # Mujoco
 *.onnx
+mujoco_saved_obs.pkl

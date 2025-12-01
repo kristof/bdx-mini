@@ -1,0 +1,44 @@
+###############################
+# macOS SYSTEM FILES
+###############################
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+###############################
+# GENERAL
+###############################
+*.log
+*.tmp
+*.temp
+*.swp
+*.bak
+*.old
+*.orig
+*.lock
+
+###############################
+# PYTHON
+###############################
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/

@@ -38,6 +38,7 @@ from playground.common.rewards import (
     cost_action_rate,
     cost_stand_still,
     reward_alive,
+    reward_foot_height_tracking,
 )
 from playground.open_duck_mini_v2.custom_rewards import reward_imitation
 
@@ -83,8 +84,11 @@ def default_config() -> config_dict.ConfigDict:
                 stand_still=-0.2,  # was -1.0 TODO try to relax this a bit ?
                 alive=20.0,
                 imitation=1.0,
+                foot_height_tracking=0.5,
             ),
             tracking_sigma=0.01,  # was working at 0.01
+            foot_height_sigma=0.01,
+            swing_height=0.02,
         ),
         push_config=config_dict.create(
             enable=True,
@@ -498,8 +502,8 @@ class Joystick(open_duck_mini_v2_base.OpenDuckMiniV2Env):
         )
 
         accelerometer = self.get_accelerometer(data)
-        # accelerometer[0] += 1.3 # TODO testing
-        accelerometer.at[0].set(accelerometer[0] + 1.3)
+        # Add bias to X-axis accelerometer (was broken, now fixed)
+        accelerometer = accelerometer.at[0].add(1.3)
 
         info["rng"], noise_rng = jax.random.split(info["rng"])
         noisy_accelerometer = (
@@ -642,13 +646,12 @@ class Joystick(open_duck_mini_v2_base.OpenDuckMiniV2Env):
                 self.get_gyro(data),
                 self._config.reward_config.tracking_sigma,
             ),
-            # "orientation": cost_orientation(self.get_gravity(data)),
             "torques": cost_torques(data.actuator_force),
             "action_rate": cost_action_rate(action, info["last_act"]),
             "alive": reward_alive(),
-            "imitation": reward_imitation(  # FIXME, this reward is so adhoc...
-                self.get_floating_base_qpos(data.qpos),  # floating base qpos
-                self.get_floating_base_qvel(data.qvel),  # floating base qvel
+            "imitation": reward_imitation(
+                self.get_floating_base_qpos(data.qpos),
+                self.get_floating_base_qvel(data.qvel),
                 self.get_actuator_joints_qpos(data.qpos),
                 self.get_actuator_joints_qvel(data.qvel),
                 contact,
@@ -657,12 +660,17 @@ class Joystick(open_duck_mini_v2_base.OpenDuckMiniV2Env):
                 USE_IMITATION_REWARD,
             ),
             "stand_still": cost_stand_still(
-                # info["command"], data.qpos[7:], data.qvel[6:], self._default_pose
                 info["command"],
                 self.get_actuator_joints_qpos(data.qpos),
                 self.get_actuator_joints_qvel(data.qvel),
                 self._default_actuator,
                 ignore_head=False,
+            ),
+            "foot_height_tracking": reward_foot_height_tracking(
+                self.get_feet_pos(data),
+                info["imitation_phase"],
+                self._config.reward_config.swing_height,
+                self._config.reward_config.foot_height_sigma,
             ),
         }
 

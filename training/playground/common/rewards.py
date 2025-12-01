@@ -239,3 +239,33 @@ def reward_feet_phase(
     # cmd_norm = jp.linalg.norm(commands)
     # reward *= cmd_norm > 0.1  # No reward for zero commands.
     return jp.nan_to_num(reward)
+
+
+def reward_foot_height_tracking(
+    foot_pos: jax.Array,
+    phase: jax.Array,
+    swing_height: float = 0.02,
+    tracking_sigma: float = 0.01,
+) -> jax.Array:
+    """
+    Reward for tracking foot height during swing phase.
+    Complements joint-space imitation with task-space height constraint.
+    
+    Args:
+        foot_pos: Current foot positions [2, 3] (left, right)
+        phase: [cos, sin] of gait phase from imitation_phase
+        swing_height: Target foot lift height during swing
+        tracking_sigma: Scaling factor for exponential reward
+    
+    Returns:
+        Scalar reward value
+    """
+    # Target height offset based on gait phase
+    # Feet should lift when sin(phase) > 0
+    target_z_offset = swing_height * jp.maximum(0, phase[1])
+    
+    foot_z = foot_pos[..., -1]
+    # Only penalize if foot is too low during swing
+    z_error = jp.maximum(0, target_z_offset - foot_z)
+    
+    return jp.nan_to_num(jp.exp(-jp.sum(jp.square(z_error)) / tracking_sigma))

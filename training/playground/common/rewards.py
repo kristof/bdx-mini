@@ -79,6 +79,14 @@ def cost_action_rate(act: jax.Array, last_act: jax.Array) -> jax.Array:
     return c1
 
 
+def cost_action_jerk(
+    act: jax.Array, last_act: jax.Array, last_last_act: jax.Array
+) -> jax.Array:
+    """Penalize jerky actions - second derivative of action for smoother motion."""
+    action_accel = act - 2 * last_act + last_last_act
+    return jp.nan_to_num(jp.sum(jp.square(action_accel)))
+
+
 # Other rewards.
 
 

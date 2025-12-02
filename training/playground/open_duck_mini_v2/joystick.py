@@ -36,6 +36,7 @@ from playground.common.rewards import (
     reward_tracking_ang_vel,
     cost_torques,
     cost_action_rate,
+    cost_action_jerk,
     cost_stand_still,
     reward_alive,
     reward_foot_height_tracking,
@@ -81,7 +82,8 @@ def default_config() -> config_dict.ConfigDict:
                 tracking_ang_vel=6.0,
                 torques=-1.0e-3,
                 action_rate=-0.5,  # was -1.5
-                stand_still=-0.2,  # was -1.0 TODO try to relax this a bit ?
+                action_jerk=-0.1,  # smoothness penalty for character-like motion
+                stand_still=-0.2,  # was -1.0 TODO try to relax this a bit ?
                 alive=20.0,
                 imitation=1.0,
                 foot_height_tracking=0.5,
@@ -648,6 +650,9 @@ class Joystick(open_duck_mini_v2_base.OpenDuckMiniV2Env):
             ),
             "torques": cost_torques(data.actuator_force),
             "action_rate": cost_action_rate(action, info["last_act"]),
+            "action_jerk": cost_action_jerk(
+                action, info["last_act"], info["last_last_act"]
+            ),
             "alive": reward_alive(),
             "imitation": reward_imitation(
                 self.get_floating_base_qpos(data.qpos),

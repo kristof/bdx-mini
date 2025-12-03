@@ -88,16 +88,20 @@ class Imu:
         calibrate=False,
         upside_down=True,
         enable_spike_filter=True,
-        hampel_window_size=7,      # was 11 → reduces delay by ~40ms
+        hampel_window_size=5,      # small window for minimal latency
         hampel_sigmas=3.5,
-        ema_alpha_gyro=0.25,       # was 0.12 → faster response
-        ema_alpha_acc=0.20,        # was 0.10 → faster response
+        smooth_gyro=False,         # NO smoothing on gyro by default (fast response for balance)
+        smooth_accel=True,         # light smoothing on accel is okay (used for drift correction)
+        ema_alpha_gyro=0.4,        # only used if smooth_gyro=True
+        ema_alpha_acc=0.3,         # moderate smoothing for accel
         clamp_spikes=False,
     ):
         self.sampling_freq = float(sampling_freq)
         self.calibrate = calibrate
         self.user_pitch_bias = user_pitch_bias  # kept for compatibility
         self.enable_spike_filter = enable_spike_filter
+        self.smooth_gyro = smooth_gyro
+        self.smooth_accel = smooth_accel
 
         # --- IMU init ---
         i2c = busio.I2C(board.SCL, board.SDA)
@@ -174,6 +178,9 @@ class Imu:
         self.last_imu_data = {"gyro": np.zeros(3), "accelero": np.zeros(3)}
 
         # --- spike filters (per axis) ---
+        # Asymmetric filtering strategy for balance robots:
+        #   - Gyro: Hampel only (spike removal) - needs fast response for balance
+        #   - Accel: Hampel + EMA - can be slower (used for drift correction)
         if self.enable_spike_filter:
             self.gyro_hampel = [
                 HampelFilter1D(window_size=hampel_window_size, n_sigmas=hampel_sigmas, clamp=clamp_spikes),
@@ -185,8 +192,10 @@ class Imu:
                 HampelFilter1D(window_size=hampel_window_size, n_sigmas=hampel_sigmas, clamp=clamp_spikes),
                 HampelFilter1D(window_size=hampel_window_size, n_sigmas=hampel_sigmas, clamp=clamp_spikes),
             ]
-            self.gyro_ema = [EMA1D(alpha=ema_alpha_gyro), EMA1D(alpha=ema_alpha_gyro), EMA1D(alpha=ema_alpha_gyro)]
-            self.acc_ema = [EMA1D(alpha=ema_alpha_acc), EMA1D(alpha=ema_alpha_acc), EMA1D(alpha=ema_alpha_acc)]
+            if self.smooth_gyro:
+                self.gyro_ema = [EMA1D(alpha=ema_alpha_gyro), EMA1D(alpha=ema_alpha_gyro), EMA1D(alpha=ema_alpha_gyro)]
+            if self.smooth_accel:
+                self.acc_ema = [EMA1D(alpha=ema_alpha_acc), EMA1D(alpha=ema_alpha_acc), EMA1D(alpha=ema_alpha_acc)]
 
         # Single-slot queue: always keep only the newest sample
         self.imu_queue = Queue(maxsize=1)
@@ -243,13 +252,18 @@ class Imu:
             # Offset correction
             accelero[0] -= self.x_offset
 
-            # Spike removal + gentle smoothing
+            # Asymmetric filtering: fast gyro, smoother accel
             if self.enable_spike_filter:
                 for i in range(3):
-                    g_i = self.gyro_hampel[i].filter(gyro[i])
-                    a_i = self.acc_hampel[i].filter(accelero[i])
-                    gyro[i] = self.gyro_ema[i].filter(g_i)
-                    accelero[i] = self.acc_ema[i].filter(a_i)
+                    # Gyro: Hampel spike removal (+ optional EMA if smooth_gyro=True)
+                    gyro[i] = self.gyro_hampel[i].filter(gyro[i])
+                    if self.smooth_gyro:
+                        gyro[i] = self.gyro_ema[i].filter(gyro[i])
+                    
+                    # Accel: Hampel spike removal (+ optional EMA if smooth_accel=True)
+                    accelero[i] = self.acc_hampel[i].filter(accelero[i])
+                    if self.smooth_accel:
+                        accelero[i] = self.acc_ema[i].filter(accelero[i])
 
             data = {"gyro": gyro, "accelero": accelero}
 
@@ -279,12 +293,16 @@ if __name__ == "__main__":
         calibrate=False,
         upside_down=False,
         enable_spike_filter=True,
-        hampel_window_size=7,
+        hampel_window_size=5,
         hampel_sigmas=3.5,
-        ema_alpha_gyro=0.25,
-        ema_alpha_acc=0.20,
+        smooth_gyro=False,      # Fast gyro for balance
+        smooth_accel=True,      # Smoother accel for drift correction
+        ema_alpha_acc=0.3,
         clamp_spikes=False,
     )
+    print("IMU initialized with asymmetric filtering:")
+    print("  - Gyro: Hampel only (fast response)")
+    print("  - Accel: Hampel + EMA (smoother)")
     while True:
         data = imu.get_data()
         print("gyro", np.around(data["gyro"], 3))

@@ -6,11 +6,7 @@ Tests if the BNO055 IMU is properly calibrated.
 
 import numpy as np
 import time
-import sys
 import os
-
-# Add parent to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from mini_bdx_runtime.raw_imu import Imu
 

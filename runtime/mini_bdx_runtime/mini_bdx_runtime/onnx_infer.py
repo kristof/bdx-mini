@@ -4,8 +4,16 @@ import onnxruntime
 class OnnxInfer:
     def __init__(self, onnx_model_path, input_name="obs", awd=False):
         self.onnx_model_path = onnx_model_path
+        
+        # Optimize ONNX session for faster inference
+        sess_options = onnxruntime.SessionOptions()
+        sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+        sess_options.intra_op_num_threads = 2  # Tune based on your CPU
+        
         self.ort_session = onnxruntime.InferenceSession(
-            self.onnx_model_path, providers=["CPUExecutionProvider"]
+            self.onnx_model_path,
+            sess_options=sess_options,
+            providers=["CPUExecutionProvider"]
         )
         self.input_name = input_name
         self.awd = awd

@@ -260,12 +260,19 @@ def reward_foot_height_tracking(
     Returns:
         Scalar reward value
     """
-    # Target height offset based on gait phase
-    # Feet should lift when sin(phase) > 0
-    target_z_offset = swing_height * jp.maximum(0, phase[1])
+    # Feet are 180° out of phase in bipedal gait
+    # Left foot swings when sin(phase) > 0, right foot when sin(phase) < 0
+    left_swing_phase = jp.maximum(0, phase[1])   # sin(phase)
+    right_swing_phase = jp.maximum(0, -phase[1]) # sin(phase + π) = -sin(phase)
     
-    foot_z = foot_pos[..., -1]
-    # Only penalize if foot is too low during swing
-    z_error = jp.maximum(0, target_z_offset - foot_z)
+    target_z_left = swing_height * left_swing_phase
+    target_z_right = swing_height * right_swing_phase
     
-    return jp.nan_to_num(jp.exp(-jp.sum(jp.square(z_error)) / tracking_sigma))
+    foot_z = foot_pos[..., -1]  # [left_z, right_z]
+    
+    # Only penalize if foot is too low during its swing phase
+    z_error_left = jp.maximum(0, target_z_left - foot_z[0])
+    z_error_right = jp.maximum(0, target_z_right - foot_z[1])
+    z_error = jp.square(z_error_left) + jp.square(z_error_right)
+    
+    return jp.nan_to_num(jp.exp(-z_error / tracking_sigma))

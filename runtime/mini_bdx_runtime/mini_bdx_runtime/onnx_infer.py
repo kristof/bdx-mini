@@ -8,7 +8,7 @@ class OnnxInfer:
         # Optimize ONNX session for faster inference
         sess_options = onnxruntime.SessionOptions()
         sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        sess_options.intra_op_num_threads = 2  # Tune based on your CPU
+        sess_options.intra_op_num_threads = 1  # 1 is optimal for small models on Pi Zero 2 W
         
         self.ort_session = onnxruntime.InferenceSession(
             self.onnx_model_path,

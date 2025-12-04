@@ -36,16 +36,32 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--onnx_model_path", type=str, required=True)
+    parser.add_argument("-n", "--num_iters", type=int, default=1000)
     args = parser.parse_args()
 
     oi = OnnxInfer(args.onnx_model_path, awd=True)
-    inputs = np.random.uniform(size=54).astype(np.float32)
-    inputs = np.arange(47).astype(np.float32)
+    
+    # Auto-detect input size from model
+    input_shape = oi.ort_session.get_inputs()[0].shape
+    input_size = input_shape[-1]  # Last dimension is the feature count
+    print(f"Model expects input size: {input_size}")
+    
+    inputs = np.random.uniform(size=input_size).astype(np.float32)
+    
+    # Warmup
+    for _ in range(10):
+        oi.infer(inputs)
+    
+    # Benchmark
     times = []
-    for i in range(1000):
+    for i in range(args.num_iters):
         start = time.time()
-        print(oi.infer(inputs))
+        output = oi.infer(inputs)
         times.append(time.time() - start)
 
-    print("Average time: ", sum(times) / len(times))
-    print("Average fps: ", 1 / (sum(times) / len(times)))
+    avg_time = sum(times) / len(times)
+    print(f"\nBenchmark results ({args.num_iters} iterations):")
+    print(f"  Average time: {avg_time*1000:.3f} ms")
+    print(f"  Average FPS:  {1/avg_time:.1f}")
+    print(f"  Min time:     {min(times)*1000:.3f} ms")
+    print(f"  Max time:     {max(times)*1000:.3f} ms")

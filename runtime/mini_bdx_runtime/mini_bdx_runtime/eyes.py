@@ -4,8 +4,8 @@ import random
 import time
 from threading import Thread, Event
 
-LEFT_EYE_PIN = board.D24
-RIGHT_EYE_PIN = board.D23
+LEFT_EYE_PIN = board.D10
+RIGHT_EYE_PIN = board.D24
 
 
 class Eyes:

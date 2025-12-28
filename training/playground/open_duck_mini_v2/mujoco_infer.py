@@ -6,7 +6,6 @@ import mujoco.viewer
 import time
 import argparse
 from playground.common.onnx_infer import OnnxInfer
-from playground.common.poly_reference_motion_numpy import PolyReferenceMotion
 from playground.common.utils import LowPassActionFilter
 
 from playground.open_duck_mini_v2.mujoco_infer_base import MJInferBase
@@ -33,7 +32,11 @@ class MjInfer(MJInferBase):
         self.action_filter = LowPassActionFilter(50, cutoff_frequency=37.5)
 
         if not self.standing:
-            self.PRM = PolyReferenceMotion(reference_data)
+            # Load only the phase period from reference motion data
+            with open(reference_data, "rb") as f:
+                ref_data = pickle.load(f)
+                first_key = next(iter(ref_data))
+                self.nb_steps_in_period = int(ref_data[first_key]["period"] * ref_data[first_key]["fps"])
 
         self.policy = OnnxInfer(onnx_model_path, awd=True)
 
@@ -174,21 +177,19 @@ class MjInfer(MJInferBase):
                         if not self.standing:
                             self.imitation_i += 1.0 * self.phase_frequency_factor
                             self.imitation_i = (
-                                self.imitation_i % self.PRM.nb_steps_in_period
+                                self.imitation_i % self.nb_steps_in_period
                             )
-                            # print(self.PRM.nb_steps_in_period)
-                            # exit()
                             self.imitation_phase = np.array(
                                 [
                                     np.cos(
                                         self.imitation_i
-                                        / self.PRM.nb_steps_in_period
+                                        / self.nb_steps_in_period
                                         * 2
                                         * np.pi
                                     ),
                                     np.sin(
                                         self.imitation_i
-                                        / self.PRM.nb_steps_in_period
+                                        / self.nb_steps_in_period
                                         * 2
                                         * np.pi
                                     ),

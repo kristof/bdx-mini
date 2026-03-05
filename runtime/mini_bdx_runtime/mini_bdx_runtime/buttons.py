@@ -2,16 +2,33 @@ import time
 
 
 class Button:
-    def __init__(self):
+    def __init__(self, long_press_duration=0.4):
         self.last_pressed_time = time.time()
+        self.press_start_time = 0
         self.timeout = 0.2
+        self.long_press_duration = long_press_duration
         self.is_pressed = False
         self.triggered = False
         self.released = True
+        self.short_press = False
+        self.long_press = False
+        self._was_pressed = False
 
     def update(self, value):
-        if self.is_pressed and not value:
+        self.short_press = False
+        self.long_press = False
+        
+        if value and not self._was_pressed:
+            self.press_start_time = time.time()
+        
+        if self._was_pressed and not value:
             self.released = True
+            hold_duration = time.time() - self.press_start_time
+            if hold_duration >= self.long_press_duration:
+                self.long_press = True
+            else:
+                self.short_press = True
+        
         self.is_pressed = value
         if (
             self.released
@@ -25,6 +42,8 @@ class Button:
 
         if self.is_pressed:
             self.released = False
+        
+        self._was_pressed = value
 
 
 class Buttons:
@@ -37,8 +56,10 @@ class Buttons:
         self.RB = Button()
         self.dpad_up = Button()
         self.dpad_down = Button()
+        self.dpad_left = Button()
+        self.dpad_right = Button()
 
-    def update(self, A, B, X, Y, LB, RB, dpad_up, dpad_down):
+    def update(self, A, B, X, Y, LB, RB, dpad_up, dpad_down, dpad_left=False, dpad_right=False):
         self.A.update(A)
         self.B.update(B)
         self.X.update(X)
@@ -47,6 +68,8 @@ class Buttons:
         self.RB.update(RB)
         self.dpad_up.update(dpad_up)
         self.dpad_down.update(dpad_down)
+        self.dpad_left.update(dpad_left)
+        self.dpad_right.update(dpad_right)
 
 
 if __name__ == "__main__":

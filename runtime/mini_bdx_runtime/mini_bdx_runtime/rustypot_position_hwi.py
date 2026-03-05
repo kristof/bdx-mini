@@ -3,12 +3,14 @@ import time
 import numpy as np
 import rustypot
 from mini_bdx_runtime.duck_config import DuckConfig
+from mini_bdx_runtime.esp32_peripherals import ESP32Peripherals
 
 
 class HWI:
-    def __init__(self, duck_config: DuckConfig, usb_port: str = "/dev/ttyACM0"):
-
+    def __init__(self, duck_config: DuckConfig, usb_port: str = "/dev/ttyACM0", 
+                 enable_esp32_peripherals: bool = True):
         self.duck_config = duck_config
+        self._usb_port = usb_port
 
         # Order matters here
         self.joints = {
@@ -21,8 +23,6 @@ class HWI:
             "head_pitch": 31,
             "head_yaw": 32,
             "head_roll": 33,
-            # "left_antenna": None,
-            # "right_antenna": None,
             "right_hip_yaw": 10,
             "right_hip_roll": 11,
             "right_hip_pitch": 12,
@@ -40,8 +40,6 @@ class HWI:
             "head_pitch": 0,
             "head_yaw": 0,
             "head_roll": 0,
-            # "left_antenna":0,
-            # "right_antenna":0,
             "right_hip_yaw": 0,
             "right_hip_roll": 0,
             "right_hip_pitch": 0,
@@ -59,8 +57,6 @@ class HWI:
             "head_pitch": 0.0,
             "head_yaw": 0,
             "head_roll": 0,
-            # "left_antenna": 0,
-            # "right_antenna": 0,
             "right_hip_yaw": -0.003,
             "right_hip_roll": -0.065,
             "right_hip_pitch": 0.635,
@@ -75,6 +71,17 @@ class HWI:
         self.low_torque_kps = np.ones(len(self.joints)) * 2
 
         self.io = rustypot.feetech(usb_port, 1000000)
+        
+        # Initialize ESP32 peripherals (antennas, eyes, projector)
+        # Uses rustypot's io object to send commands via write_goal_position
+        self.esp32 = None
+        if enable_esp32_peripherals:
+            self.esp32 = ESP32Peripherals(self.io)
+            if self.esp32.is_connected:
+                print("ESP32 peripherals enabled")
+            else:
+                print("Warning: ESP32 peripherals not available")
+                self.esp32 = None
 
     def set_kps(self, kps):
         self.kps = kps
@@ -102,6 +109,8 @@ class HWI:
 
     def turn_off(self):
         self.io.disable_torque(list(self.joints.values()))
+        if self.esp32:
+            self.esp32.stop()
 
     def set_position(self, joint_name, pos):
         """

@@ -1,5 +1,6 @@
 import time
 import pickle
+from threading import Timer
 
 import numpy as np
 import pygame
@@ -16,8 +17,49 @@ from mini_bdx_runtime.antennas import Antennas
 from mini_bdx_runtime.projector import Projector
 from mini_bdx_runtime.rl_utils import make_action_dict, LowPassActionFilter
 from mini_bdx_runtime.duck_config import DuckConfig
+from mini_bdx_runtime.expressions import EXPRESSIONS
 
 import os
+
+
+class ExpressionController:
+    """Expression control wrapper with auto-reset. Uses HWI's ESP32 peripherals."""
+    
+    def __init__(self, esp32_peripherals, reset_delay: float = 5.0):
+        self.esp32 = esp32_peripherals
+        self.current = "neutral"
+        self.reset_delay = reset_delay
+        self._reset_timer = None
+    
+    def set(self, name: str):
+        if name not in EXPRESSIONS or self.esp32 is None:
+            return
+        if name == self.current:
+            return
+            
+        if self._reset_timer:
+            self._reset_timer.cancel()
+            self._reset_timer = None
+        
+        expr = EXPRESSIONS[name]
+        self.esp32.set_all(expr.left_antenna, expr.right_antenna, expr.eye_mode, expr.projector)
+        self.current = name
+        print(f"Expression: {name}")
+        
+        if name != "neutral":
+            self._reset_timer = Timer(self.reset_delay, self._auto_reset)
+            self._reset_timer.start()
+    
+    def _auto_reset(self):
+        print("Auto-reset to neutral")
+        self.set("neutral")
+    
+    def stop(self):
+        if self._reset_timer:
+            self._reset_timer.cancel()
+            self._reset_timer = None
+        self.set("neutral")
+
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -124,6 +166,12 @@ class RLWalk:
             )
         if self.duck_config.antennas:
             self.antennas = Antennas()
+        
+        # ESP32-based expressions (eyes, antennas, projector via virtual servo)
+        self.expression_controller = None
+        if self.hwi.esp32 is not None:
+            self.expression_controller = ExpressionController(self.hwi.esp32, reset_delay=5.0)
+            print("ESP32 expressions enabled (D-pad: short/long press)")
 
     def _try_connect_controller(self, silent=False):
         """Try to connect to the Xbox controller. Returns True if successful."""
@@ -268,17 +316,25 @@ class RLWalk:
                     self.last_commands, self.buttons, left_trigger, right_trigger = (
                         self.xbox_controller.get_last_command()
                     )
-                    if self.buttons.dpad_up.triggered:
-                        self.phase_frequency_factor_offset += 0.05
-                        print(
-                            f"Phase frequency factor offset {round(self.phase_frequency_factor_offset, 3)}"
-                        )
-
-                    if self.buttons.dpad_down.triggered:
-                        self.phase_frequency_factor_offset -= 0.05
-                        print(
-                            f"Phase frequency factor offset {round(self.phase_frequency_factor_offset, 3)}"
-                        )
+                    
+                    # D-pad = expressions (short/long press, auto-reset after 5s)
+                    if self.expression_controller:
+                        if self.buttons.dpad_up.short_press:
+                            self.expression_controller.set("happy")
+                        elif self.buttons.dpad_up.long_press:
+                            self.expression_controller.set("squint")
+                        elif self.buttons.dpad_down.short_press:
+                            self.expression_controller.set("sleepy")
+                        elif self.buttons.dpad_down.long_press:
+                            self.expression_controller.set("dizzy")
+                        elif self.buttons.dpad_left.short_press:
+                            self.expression_controller.set("angry")
+                        elif self.buttons.dpad_left.long_press:
+                            self.expression_controller.set("neutral")
+                        elif self.buttons.dpad_right.short_press:
+                            self.expression_controller.set("suspicious")
+                        elif self.buttons.dpad_right.long_press:
+                            self.expression_controller.set("neutral")
 
                     if self.buttons.LB.is_pressed:
                         self.phase_frequency_factor = 1.3
@@ -292,11 +348,12 @@ class RLWalk:
                     if self.buttons.B.triggered:
                         if self.duck_config.speaker:
                             self.sounds.play_random_sound()
+                    
 
                     if self.duck_config.antennas:
                         self.antennas.set_position_left(right_trigger)
                         self.antennas.set_position_right(left_trigger)
-
+                    
                     if self.buttons.A.triggered:
                         self.user_paused = not self.user_paused
                         self.paused = self.user_paused
@@ -393,6 +450,8 @@ class RLWalk:
                 self.eyes.stop()
             if self.duck_config.projector:
                 self.projector.stop()
+            if self.expression_controller:
+                self.expression_controller.stop()
             self.feet_contacts.stop()
 
         if self.save_obs:

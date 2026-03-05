@@ -152,6 +152,7 @@ class XBoxController:
                     left_trigger,
                     right_trigger,
                     0,
+                    0,
                 )
 
             if event.type == pygame.JOYBUTTONDOWN:
@@ -188,7 +189,9 @@ class XBoxController:
             #     if self.p1.get_button(i):
             #         print(f"Button {i} pressed")
 
-        up_down = self.p1.get_hat(0)[1]
+        hat = self.p1.get_hat(0)
+        left_right = hat[0]  # -1=left, 1=right, 0=neutral
+        up_down = hat[1]     # -1=down, 1=up, 0=neutral
         pygame.event.pump()  # process event queue
 
         return (
@@ -202,6 +205,7 @@ class XBoxController:
             left_trigger,
             right_trigger,
             up_down,
+            left_right,
         )
 
     def get_last_command(self):
@@ -212,6 +216,7 @@ class XBoxController:
         LB_pressed = False
         RB_pressed = False
         up_down = 0
+        left_right = 0
         try:
             (
                 self.last_commands,
@@ -224,6 +229,7 @@ class XBoxController:
                 self.last_left_trigger,
                 self.last_right_trigger,
                 up_down,
+                left_right,
             ) = self.cmd_queue.get(
                 False
             )  # non blocking
@@ -239,6 +245,8 @@ class XBoxController:
             RB_pressed,
             up_down == 1,
             up_down == -1,
+            left_right == -1,
+            left_right == 1,
         )
 
         return (

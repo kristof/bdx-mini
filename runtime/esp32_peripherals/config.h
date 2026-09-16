@@ -1,16 +1,13 @@
 /*
- * Configuration for ESP32 Virtual Servo
+ * Configuration for ESP32 Peripherals
  */
 
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Virtual Servo ID on the Feetech bus
-#define VIRTUAL_SERVO_ID 40
-
-// Serial communication
-#define BAUD_RATE 1000000
-#define PIN_SERIAL_RX 16  // RX only, connected to servo bus
+// USB serial link to the Raspberry Pi (native USB, no baud negotiation needed
+// on boards with native USB CDC; on CP2102/CH340 boards this sets the actual bit rate)
+#define USB_BAUD_RATE 115200
 
 // Antenna PWM pins
 #define PIN_ANTENNA_LEFT 25
@@ -27,19 +24,6 @@
 
 // Projector LED
 #define PIN_PROJECTOR 22
-
-// Feetech Protocol Constants
-#define INST_PING 0x01
-#define INST_READ 0x02
-#define INST_WRITE 0x03
-#define INST_REG_WRITE 0x04
-#define INST_ACTION 0x05
-#define INST_RESET 0x06
-#define INST_SYNC_WRITE 0x83
-
-// Register addresses (STS3215 compatible)
-#define REG_GOAL_POSITION 42  // 2 bytes
-#define REG_GOAL_SPEED 46     // 2 bytes
 
 // Eye modes
 #define EYE_MODE_NORMAL 0

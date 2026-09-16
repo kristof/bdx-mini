@@ -62,6 +62,32 @@ SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}="1"
 
 TODO
 
+### Set the udev rule for the ESP32 peripherals board
+
+The ESP32 (eyes/antennas/projector, see `esp32_peripherals/`) plugs into its
+own USB port on the Pi, separate from the motor control board. With two
+USB-serial devices attached, `/dev/ttyUSB*`/`/dev/ttyACM*` numbering can swap
+between boots. Pin it to a stable name with a udev rule:
+
+```bash
+# Find the ESP32's vendor/product ID (unplug/replug and compare `lsusb` output,
+# or check `udevadm info -a -n /dev/ttyUSB0` once it's plugged in)
+lsusb
+
+cd /etc/udev/rules.d/
+sudo touch 99-esp32-peripherals.rules
+sudo nano 99-esp32-peripherals.rules
+# copy the following line in the file
+# (this board uses a WCH CH9102/CH34x bridge, ID 1a86:55d3 - "USB Single Serial")
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", SYMLINK+="esp32_peripherals"
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+Then point the runtime at `/dev/esp32_peripherals` instead of a raw
+`/dev/ttyUSB0`.
+
 
 ### Setup xbox one controller over bluetooth
 

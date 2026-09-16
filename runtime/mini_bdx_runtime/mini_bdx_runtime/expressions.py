@@ -189,16 +189,16 @@ class Expressions:
             self.stop_antenna_animation(return_to_neutral=False)
             
             # Set eye mode
-            self.hwi.set_eye_mode(expr.eye_mode)
+            self.hwi.esp32.set_eye_mode(expr.eye_mode)
             
             # Set projector
-            self.hwi.set_projector(expr.projector)
+            self.hwi.esp32.set_projector(expr.projector)
             
             # Handle antennas: use animation if available, otherwise static position
             if use_animation and expr.animation:
                 self.start_antenna_animation(expr.animation, expr.animation_speed)
             else:
-                self.hwi.set_antennas(expr.left_antenna, expr.right_antenna)
+                self.hwi.esp32.set_antennas(expr.left_antenna, expr.right_antenna)
             
             # Play sound if available and requested
             if play_sound and expr.sound and self.sounds:
@@ -251,11 +251,11 @@ class Expressions:
         while time.time() - start_time < duration:
             t = (time.time() - start_time) * speed
             left, right = self._calculate_antenna_position(pattern, t)
-            self.hwi.set_antennas(left, right)
+            self.hwi.esp32.set_antennas(left, right)
             time.sleep(0.02)  # 50Hz update
         
         # Return to neutral
-        self.hwi.set_antennas(0.0, 0.0)
+        self.hwi.esp32.set_antennas(0.0, 0.0)
     
     def _calculate_antenna_position(self, pattern: str, t: float) -> tuple:
         """Calculate antenna positions for a given pattern and time."""
@@ -333,7 +333,7 @@ class Expressions:
             self._animation_thread.join(timeout=0.5)
             
             if return_to_neutral:
-                self.hwi.set_antennas(0.0, 0.0)
+                self.hwi.esp32.set_antennas(0.0, 0.0)
             
             print("Stopped antenna animation")
         
@@ -360,7 +360,7 @@ class Expressions:
                 left, right = self._calculate_antenna_position(
                     self._current_animation, t
                 )
-                self.hwi.set_antennas(left, right)
+                self.hwi.esp32.set_antennas(left, right)
             except Exception as e:
                 print(f"Animation error: {e}")
                 break
@@ -389,8 +389,8 @@ class Expressions:
         expr = EXPRESSIONS[expression_name]
         
         # Set eye mode and projector
-        self.hwi.set_eye_mode(expr.eye_mode)
-        self.hwi.set_projector(expr.projector)
+        self.hwi.esp32.set_eye_mode(expr.eye_mode)
+        self.hwi.esp32.set_projector(expr.projector)
         
         # Play sound
         if play_sound and expr.sound and self.sounds:

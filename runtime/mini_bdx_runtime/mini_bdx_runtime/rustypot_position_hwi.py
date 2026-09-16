@@ -7,8 +7,8 @@ from mini_bdx_runtime.esp32_peripherals import ESP32Peripherals
 
 
 class HWI:
-    def __init__(self, duck_config: DuckConfig, usb_port: str = "/dev/ttyACM0", 
-                 enable_esp32_peripherals: bool = True):
+    def __init__(self, duck_config: DuckConfig, usb_port: str = "/dev/ttyACM0",
+                 enable_esp32_peripherals: bool = True, esp32_port: str = "/dev/esp32_peripherals"):
         self.duck_config = duck_config
         self._usb_port = usb_port
 
@@ -71,12 +71,13 @@ class HWI:
         self.low_torque_kps = np.ones(len(self.joints)) * 2
 
         self.io = rustypot.feetech(usb_port, 1000000)
-        
-        # Initialize ESP32 peripherals (antennas, eyes, projector)
-        # Uses rustypot's io object to send commands via write_goal_position
+
+        # Initialize ESP32 peripherals (antennas, eyes, projector).
+        # This talks to the ESP32 over its own dedicated USB serial link,
+        # not the Feetech servo bus, so it doesn't compete with locomotion.
         self.esp32 = None
         if enable_esp32_peripherals:
-            self.esp32 = ESP32Peripherals(self.io)
+            self.esp32 = ESP32Peripherals(port=esp32_port)
             if self.esp32.is_connected:
                 print("ESP32 peripherals enabled")
             else:

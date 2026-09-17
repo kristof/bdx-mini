@@ -76,21 +76,24 @@ sudo raspi-config
 ```
 
 The Pi Zero 2W's best UART (PL011) is used by the onboard Bluetooth chip by
-default, leaving only the lower-quality "mini UART" (clock-derived baud rate,
-can drift) on GPIO14/15. Since this robot doesn't need Bluetooth, free up the
-PL011 for the ESP32 link instead:
+default, leaving only the lower-quality "mini UART" (its baud rate is
+derived from the core clock rather than a dedicated clock) on GPIO14/15.
+This robot's Xbox controller needs Bluetooth, so don't disable it - just use
+the mini UART as-is. At our modest 115200 baud with a fixed core clock this
+is reliable; optionally pin the core clock explicitly as a safety net
+against drift:
 
 ```bash
 # add this line to /boot/firmware/config.txt (or /boot/config.txt on older OS)
-echo "dtoverlay=disable-bt" | sudo tee -a /boot/firmware/config.txt
-sudo systemctl disable hciuart
+echo "core_freq=250" | sudo tee -a /boot/firmware/config.txt
 sudo reboot
 ```
 
-After rebooting, confirm it came up on the full UART and works:
+After rebooting, `/dev/serial0` will point to `ttyS0` (the mini UART, not
+`ttyAMA0`) - that's expected. Confirm it works:
 
 ```bash
-ls -l /dev/serial0   # should point to ttyAMA0, not ttyS0
+ls -l /dev/serial0   # should point to ttyS0
 python3 -m serial.tools.miniterm /dev/serial0 115200
 # press the ESP32's reset button - you should see its boot banner
 ```

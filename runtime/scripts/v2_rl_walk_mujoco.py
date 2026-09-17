@@ -142,7 +142,8 @@ class RLWalk:
         self.paused = self.user_paused  # Actual pause state (can be forced by missing controller)
 
         self.command_freq = 20  # hz
-        self._last_sent_antenna_triggers = None
+        self._last_l2_pressed = False
+        self._last_r2_pressed = False
         self.xbox_controller = None
         self.last_controller_check = 0
         self.controller_check_interval = 1.0  # Check for controller every second when disconnected
@@ -325,8 +326,20 @@ class RLWalk:
                     
                     # D-pad = expressions (short/long press, auto-reset after 5s)
                     # P1/P2 (controller paddle buttons) = squint/angry
+                    # L2/R2 (analog triggers, thresholded) = happy (heart eyes)/suspicious
+                    l2_pressed = left_trigger > 0.5
+                    r2_pressed = right_trigger > 0.5
+                    l2_triggered = l2_pressed and not self._last_l2_pressed
+                    r2_triggered = r2_pressed and not self._last_r2_pressed
+                    self._last_l2_pressed = l2_pressed
+                    self._last_r2_pressed = r2_pressed
+
                     if self.expression_controller:
-                        if self.buttons.P1.triggered:
+                        if l2_triggered:
+                            self.expression_controller.set("happy")
+                        elif r2_triggered:
+                            self.expression_controller.set("suspicious")
+                        elif self.buttons.P1.triggered:
                             self.expression_controller.set("squint")
                         elif self.buttons.P2.triggered:
                             self.expression_controller.set("angry")
@@ -363,15 +376,7 @@ class RLWalk:
                             self.sounds.play_random_sound()
                     
 
-                    if self.hwi.esp32 is not None:
-                        # Only send on change - triggers read as 0 at rest, and sending
-                        # that every tick would fight the expression system's antenna
-                        # poses (e.g. "angry"), stomping them back to neutral instantly.
-                        triggers = (right_trigger, left_trigger)
-                        if triggers != self._last_sent_antenna_triggers:
-                            self.hwi.esp32.set_antennas(right_trigger, left_trigger)
-                            self._last_sent_antenna_triggers = triggers
-                    elif self.duck_config.antennas:
+                    if self.duck_config.antennas:
                         self.antennas.set_position_left(right_trigger)
                         self.antennas.set_position_right(left_trigger)
                     

@@ -344,8 +344,6 @@ class RLWalk:
                         elif self.buttons.P2.triggered:
                             self.expression_controller.set("angry")
                         elif self.buttons.dpad_up.short_press:
-                            self.expression_controller.set("happy")
-                        elif self.buttons.dpad_up.long_press:
                             self.expression_controller.set("neutral")
                         elif self.buttons.dpad_down.short_press:
                             self.expression_controller.set("sleepy")

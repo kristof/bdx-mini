@@ -5,9 +5,15 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// USB serial link to the Raspberry Pi (native USB, no baud negotiation needed
+// Debug/flashing link over the native USB port (no baud negotiation needed
 // on boards with native USB CDC; on CP2102/CH340 boards this sets the actual bit rate)
 #define USB_BAUD_RATE 115200
+
+// Dedicated hardware UART to the Raspberry Pi's GPIO14/15 (via the board's
+// "Serial 0" header), independent of the USB link above.
+#define PI_UART_BAUD_RATE 115200
+#define PIN_PI_UART_TX 18  // ESP32 transmits here -> Pi RXD (header's TX pin)
+#define PIN_PI_UART_RX 19  // ESP32 receives here <- Pi TXD (header's RX pin)
 
 // Antenna PWM pins
 #define PIN_ANTENNA_LEFT 25

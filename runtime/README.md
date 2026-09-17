@@ -62,31 +62,42 @@ SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}="1"
 
 TODO
 
-### Set the udev rule for the ESP32 peripherals board
+### Enable the Pi's hardware UART for the ESP32 peripherals board
 
-The ESP32 (eyes/antennas/projector, see `esp32_peripherals/`) plugs into its
-own USB port on the Pi, separate from the motor control board. With two
-USB-serial devices attached, `/dev/ttyUSB*`/`/dev/ttyACM*` numbering can swap
-between boots. Pin it to a stable name with a udev rule:
+The ESP32 (eyes/antennas/projector, see `esp32_peripherals/`) connects over a
+dedicated wire to the Pi's hardware UART (GPIO14/15), not USB - see
+`esp32_peripherals/README.md` for the wiring. To use it:
 
 ```bash
-# Find the ESP32's vendor/product ID (unplug/replug and compare `lsusb` output,
-# or check `udevadm info -a -n /dev/ttyUSB0` once it's plugged in)
-lsusb
-
-cd /etc/udev/rules.d/
-sudo touch 99-esp32-peripherals.rules
-sudo nano 99-esp32-peripherals.rules
-# copy the following line in the file
-# (this board uses a WCH CH9102/CH34x bridge, ID 1a86:55d3 - "USB Single Serial")
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", SYMLINK+="esp32_peripherals"
-
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+sudo raspi-config
+# Interface Options -> Serial Port
+#   "login shell over serial?" -> No
+#   "serial port hardware enabled?" -> Yes
 ```
 
-Then point the runtime at `/dev/esp32_peripherals` instead of a raw
-`/dev/ttyUSB0`.
+The Pi Zero 2W's best UART (PL011) is used by the onboard Bluetooth chip by
+default, leaving only the lower-quality "mini UART" (clock-derived baud rate,
+can drift) on GPIO14/15. Since this robot doesn't need Bluetooth, free up the
+PL011 for the ESP32 link instead:
+
+```bash
+# add this line to /boot/firmware/config.txt (or /boot/config.txt on older OS)
+echo "dtoverlay=disable-bt" | sudo tee -a /boot/firmware/config.txt
+sudo systemctl disable hciuart
+sudo reboot
+```
+
+After rebooting, confirm it came up on the full UART and works:
+
+```bash
+ls -l /dev/serial0   # should point to ttyAMA0, not ttyS0
+python3 -m serial.tools.miniterm /dev/serial0 115200
+# press the ESP32's reset button - you should see its boot banner
+```
+
+The runtime defaults to `/dev/serial0` for the ESP32 link, no udev rule
+needed - it's a fixed GPIO connection, not a USB device with unstable
+numbering.
 
 
 ### Setup xbox one controller over bluetooth

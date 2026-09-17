@@ -1,7 +1,7 @@
 # ESP32 Peripherals
 
 This ESP32 firmware controls the droid's expression hardware over a dedicated
-USB serial link to the Raspberry Pi:
+hardware UART link to the Raspberry Pi's GPIO14/15:
 - 2x GC9D01 0.71" round TFT displays (eyes with 7 expression modes)
 - 2x PWM servos (antennas)
 - 1x 3.3V LED (projector)
@@ -9,17 +9,19 @@ USB serial link to the Raspberry Pi:
 It used to impersonate a Feetech servo on the leg/head servo bus, but that
 bus is half-duplex, shared with 14 time-critical locomotion servos, and only
 exposed a single 12-bit register — not enough bandwidth or precision to
-emote while walking. It now talks to the Pi over its own USB cable instead.
+emote while walking. It now talks to the Pi over a dedicated point-to-point
+UART wire instead, independent of both the servo bus and the ESP32's USB
+port (which stays free for flashing/debug).
 
 ## Hardware Requirements
 
-- ESP32 D1 Mini (or compatible) with a USB serial port (native USB or
-  CP2102/CH340 bridge)
+- ESP32 D1 Mini (or compatible)
 - 2x GC9D01 0.71" round TFT displays (160x160, 8-pin)
 - 2x Standard PWM servos (for antennas)
 - 1x LED with appropriate resistor (for projector)
-- USB cable from the ESP32's USB port to a free USB port on the Raspberry Pi
-  (e.g. USB-C on the ESP32 to a spare micro-USB port on the Pi Zero 2W)
+- 3 wires from the ESP32's `Serial 0` header (TX/RX/GND) to the Raspberry
+  Pi's UART (directly to GPIO14/15, or via a HAT that breaks them out to a
+  labeled UART connector) - see Wiring below
 
 ## Pin Connections
 
@@ -35,6 +37,8 @@ emote while walking. It now talks to the Pi over its own USB cable instead.
 | TFT RST | 13 (TCK) |
 | TFT Backlight | 21 |
 | Projector LED | 22 |
+| Pi UART TX (`Serial1`, drives the board's `Serial 0` TX pin -> Pi RXD) | 18 |
+| Pi UART RX (`Serial1`, fed by the board's `Serial 0` RX pin <- Pi TXD) | 19 |
 
 ## TFT_eSPI Library Setup
 
@@ -61,23 +65,29 @@ emote while walking. It now talks to the Pi over its own USB cable instead.
 #define SPI_FREQUENCY  40000000
 ```
 
-## USB Connection
+## Wiring: Pi UART
 
-Connect the ESP32 directly to the Raspberry Pi with a USB cable, independent
-of the servo bus USB adapter. On the Pi this shows up as its own serial
-device (e.g. `/dev/ttyUSB0`), separate from the leg servo bus adapter (e.g.
-`/dev/ttyACM0`).
+Connect 3 wires from the board's `Serial 0` header to the Raspberry Pi's
+hardware UART (GPIO14/GPIO15 - either directly on the header, or via a HAT
+that breaks them out to a labeled connector):
 
-Since there are now two USB-serial devices plugged into the Pi, their
-`/dev/ttyUSB*`/`/dev/ttyACM*` numbering isn't guaranteed to stay stable
-across reboots or reconnects. Set up a udev rule that maps this ESP32 to a
-fixed name (e.g. `/dev/esp32_peripherals`) based on its USB vendor/product ID,
-and point the runtime at that path instead of a raw `/dev/ttyUSB0`.
+| `Serial 0` header pin | Connects to |
+|---|---|
+| TX | Pi UART RX |
+| RX | Pi UART TX |
+| GND | Pi GND |
+
+(TX/RX cross over, as with any UART link.) On the Pi side this shows up as
+`/dev/serial0` - see the main `runtime/README.md` for enabling the Pi's
+hardware UART.
+
+This is completely independent of the ESP32's USB port, which stays
+available for flashing and debug output/hotkeys the whole time.
 
 ## Protocol
 
-The Pi talks to the ESP32 with a newline-terminated ASCII line over the USB
-serial port:
+The Pi talks to the ESP32 with a newline-terminated ASCII line over the
+UART link:
 
 ```
 S,<eye_mode>,<projector>,<left_antenna>,<right_antenna>

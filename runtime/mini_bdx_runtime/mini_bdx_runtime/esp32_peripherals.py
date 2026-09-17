@@ -6,8 +6,10 @@ Controls the ESP32 peripherals board which handles:
 - Eye displays (GC9D01 TFTs with 7 modes)
 - Projector LED
 
-Communicates over a dedicated USB serial link (not the Feetech servo bus),
-sending a newline-terminated ASCII line per state update:
+Communicates over the Pi's hardware UART (GPIO14/15, /dev/serial0) - a
+dedicated point-to-point link to the ESP32's Serial1 (not the Feetech servo
+bus, and not the ESP32's USB port, which is reserved for flashing/debug).
+Sends a newline-terminated ASCII line per state update:
 
     S,<eye_mode>,<projector 0|1>,<left_antenna>,<right_antenna>\\n
 """
@@ -17,7 +19,7 @@ import serial
 
 class ESP32Peripherals:
     """
-    Controller for ESP32 peripherals over USB serial.
+    Controller for ESP32 peripherals over the Pi's UART.
     """
 
     # Eye modes
@@ -29,13 +31,13 @@ class ESP32Peripherals:
     EYE_MODE_SLEEPY = 5
     EYE_MODE_DIZZY = 6
 
-    def __init__(self, port: str = "/dev/ttyUSB0", baudrate: int = 115200):
+    def __init__(self, port: str = "/dev/serial0", baudrate: int = 115200):
         """
         Initialize ESP32 peripherals controller.
 
         Args:
-            port: Serial device for the ESP32's USB connection.
-            baudrate: Must match USB_BAUD_RATE in the ESP32 firmware's config.h.
+            port: Serial device for the Pi's UART (GPIO14/15).
+            baudrate: Must match PI_UART_BAUD_RATE in the ESP32 firmware's config.h.
         """
         self._port = port
         self._serial = None

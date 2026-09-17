@@ -1,19 +1,25 @@
 /*
  * ESP32 Peripherals
  *
- * Controls the droid's expression hardware over a dedicated USB serial link
- * to the Raspberry Pi:
+ * Controls the droid's expression hardware:
  * - 2x GC9D01 TFT displays (eyes with 7 expression modes)
  * - 2x PWM servos (antennas)
  * - 1x LED (projector)
  *
+ * Two independent serial links carry the same line protocol:
+ * - Serial  (native USB): debug output + interactive hotkeys from a laptop
+ * - Serial1 (GPIO18 TX / GPIO19 RX, wired to the Pi's hardware UART via the
+ *   board's "Serial 0" header): the real command channel from the Pi. This
+ *   is a dedicated point-to-point link, independent of the leg-servo bus and
+ *   of the USB port above.
+ *
  * Eye modes: 0=Normal, 1=Angry, 2=Heart, 3=Squint, 4=Suspicious, 5=Sleepy, 6=Dizzy
  *
- * Line protocol (newline-terminated ASCII, sent over the USB serial port):
+ * Line protocol (newline-terminated ASCII):
  *   S,<eye_mode 0-6>,<projector 0|1>,<left_antenna -1.0..1.0>,<right_antenna -1.0..1.0>
  *
  * A handful of single-character hotkeys are also accepted (each followed by
- * Enter) for interactive testing from the Arduino Serial Monitor.
+ * Enter) for interactive testing over USB.
  */
 
 #include <Arduino.h>
@@ -31,14 +37,24 @@ Projector projector;
 uint8_t currentEyeMode = 0;
 bool currentProjectorState = false;
 
-// Line buffer for incoming USB serial commands
 #define LINE_BUFFER_SIZE 64
-char lineBuffer[LINE_BUFFER_SIZE];
-uint8_t lineLength = 0;
+
+struct LineReader {
+    Stream* port;
+    char buffer[LINE_BUFFER_SIZE];
+    uint8_t length = 0;
+};
+
+LineReader usbReader;
+LineReader piReader;
 
 void setup() {
     Serial.begin(USB_BAUD_RATE);
     Serial.println("ESP32 Peripherals starting...");
+
+    Serial1.begin(PI_UART_BAUD_RATE, SERIAL_8N1, PIN_PI_UART_RX, PIN_PI_UART_TX);
+    Serial.printf("Pi UART initialized (RX=%d, TX=%d) at %d baud\n",
+                   PIN_PI_UART_RX, PIN_PI_UART_TX, PI_UART_BAUD_RATE);
 
     antennas.begin();
     eyes.begin();
@@ -54,31 +70,35 @@ void setup() {
     Serial.println("  r   = Right antenna sweep");
     Serial.println("  b   = Both antennas sweep");
     Serial.println("  S,<eye>,<proj>,<left>,<right> = Set full state (used by the Pi)");
+
+    usbReader.port = &Serial;
+    piReader.port = &Serial1;
 }
 
 void loop() {
-    readIncomingLines();
+    readIncomingLines(usbReader);
+    readIncomingLines(piReader);
     eyes.update();
 }
 
-void readIncomingLines() {
-    while (Serial.available()) {
-        char c = Serial.read();
+void readIncomingLines(LineReader& reader) {
+    while (reader.port->available()) {
+        char c = reader.port->read();
 
         if (c == '\n' || c == '\r') {
-            if (lineLength > 0) {
-                lineBuffer[lineLength] = '\0';
-                handleLine(lineBuffer);
-                lineLength = 0;
+            if (reader.length > 0) {
+                reader.buffer[reader.length] = '\0';
+                handleLine(reader.buffer);
+                reader.length = 0;
             }
             continue;
         }
 
-        if (lineLength < LINE_BUFFER_SIZE - 1) {
-            lineBuffer[lineLength++] = c;
+        if (reader.length < LINE_BUFFER_SIZE - 1) {
+            reader.buffer[reader.length++] = c;
         } else {
             // Line too long, drop it
-            lineLength = 0;
+            reader.length = 0;
         }
     }
 }

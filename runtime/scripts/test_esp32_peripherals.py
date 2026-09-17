@@ -2,7 +2,9 @@
 """
 Test script for ESP32 peripherals (antennas, eyes, projector).
 
-This talks to the ESP32 over its own dedicated USB serial link.
+This talks to the ESP32 over the Pi's hardware UART (/dev/serial0).
+Run this on the Pi, not on a laptop directly connected to the ESP32's USB
+port - that port only carries debug output/hotkeys, not this protocol.
 """
 
 import time
@@ -108,8 +110,8 @@ def test_combined(esp32: ESP32Peripherals, duration: float = 10.0):
 
 def main():
     parser = argparse.ArgumentParser(description="Test ESP32 peripherals")
-    parser.add_argument("--port", type=str, default="/dev/esp32_peripherals",
-                        help="USB serial port for the ESP32")
+    parser.add_argument("--port", type=str, default="/dev/serial0",
+                        help="Pi UART device connected to the ESP32")
     parser.add_argument("--test", type=str, default="all",
                         choices=["antennas", "eyes", "projector", "combined", "all"],
                         help="Which test to run")

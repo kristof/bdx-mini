@@ -110,8 +110,8 @@ def test_antenna_animations(expressions: Expressions):
 
 def main():
     parser = argparse.ArgumentParser(description="Test robot expressions")
-    parser.add_argument("--port", type=str, default="/dev/esp32_peripherals",
-                        help="USB serial port for the ESP32")
+    parser.add_argument("--port", type=str, default="/dev/serial0",
+                        help="Pi UART device connected to the ESP32")
     parser.add_argument("--mode", type=str, default="interactive",
                         choices=["all", "antennas", "interactive"],
                         help="Test mode")

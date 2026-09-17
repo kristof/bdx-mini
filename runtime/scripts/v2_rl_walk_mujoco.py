@@ -347,7 +347,9 @@ class RLWalk:
                         self.phase_frequency_factor = 1.0
 
                     if self.buttons.X.triggered:
-                        if self.duck_config.projector:
+                        if self.hwi.esp32 is not None:
+                            self.hwi.esp32.toggle_projector()
+                        elif self.duck_config.projector:
                             self.projector.switch()
 
                     if self.buttons.B.triggered:

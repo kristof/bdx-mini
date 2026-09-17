@@ -323,17 +323,22 @@ class RLWalk:
                     )
                     
                     # D-pad = expressions (short/long press, auto-reset after 5s)
+                    # P1/P2 (controller paddle buttons) = squint/angry
                     if self.expression_controller:
-                        if self.buttons.dpad_up.short_press:
+                        if self.buttons.P1.triggered:
+                            self.expression_controller.set("squint")
+                        elif self.buttons.P2.triggered:
+                            self.expression_controller.set("angry")
+                        elif self.buttons.dpad_up.short_press:
                             self.expression_controller.set("happy")
                         elif self.buttons.dpad_up.long_press:
-                            self.expression_controller.set("squint")
+                            self.expression_controller.set("neutral")
                         elif self.buttons.dpad_down.short_press:
                             self.expression_controller.set("sleepy")
                         elif self.buttons.dpad_down.long_press:
-                            self.expression_controller.set("dizzy")
+                            self.expression_controller.set("neutral")
                         elif self.buttons.dpad_left.short_press:
-                            self.expression_controller.set("angry")
+                            self.expression_controller.set("dizzy")
                         elif self.buttons.dpad_left.long_press:
                             self.expression_controller.set("neutral")
                         elif self.buttons.dpad_right.short_press:

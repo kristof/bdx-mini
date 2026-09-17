@@ -54,18 +54,23 @@ class Buttons:
         self.Y = Button()
         self.LB = Button()
         self.RB = Button()
+        self.P1 = Button()
+        self.P2 = Button()
         self.dpad_up = Button()
         self.dpad_down = Button()
         self.dpad_left = Button()
         self.dpad_right = Button()
 
-    def update(self, A, B, X, Y, LB, RB, dpad_up, dpad_down, dpad_left=False, dpad_right=False):
+    def update(self, A, B, X, Y, LB, RB, dpad_up, dpad_down, dpad_left=False, dpad_right=False,
+               P1=False, P2=False):
         self.A.update(A)
         self.B.update(B)
         self.X.update(X)
         self.Y.update(Y)
         self.LB.update(LB)
         self.RB.update(RB)
+        self.P1.update(P1)
+        self.P2.update(P2)
         self.dpad_up.update(dpad_up)
         self.dpad_down.update(dpad_down)
         self.dpad_left.update(dpad_left)

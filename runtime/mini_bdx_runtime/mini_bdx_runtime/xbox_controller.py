@@ -39,6 +39,8 @@ class XBoxController:
         self.Y_pressed = False
         self.LB_pressed = False
         self.RB_pressed = False
+        self.P1_pressed = False
+        self.P2_pressed = False
 
         self.buttons = Buttons()
         self.is_connected = True
@@ -149,6 +151,8 @@ class XBoxController:
                     self.Y_pressed,
                     self.LB_pressed,
                     self.RB_pressed,
+                    self.P1_pressed,
+                    self.P2_pressed,
                     left_trigger,
                     right_trigger,
                     0,
@@ -177,6 +181,12 @@ class XBoxController:
                 if self.p1.get_button(7):  # RB button
                     self.RB_pressed = True
 
+                if self.p1.get_button(2):  # P1 paddle button
+                    self.P1_pressed = True
+
+                if self.p1.get_button(5):  # P2 paddle button
+                    self.P2_pressed = True
+
             if event.type == pygame.JOYBUTTONUP:
                 self.A_pressed = False
                 self.B_pressed = False
@@ -184,6 +194,8 @@ class XBoxController:
                 self.Y_pressed = False
                 self.LB_pressed = False
                 self.RB_pressed = False
+                self.P1_pressed = False
+                self.P2_pressed = False
 
             # for i in range(10):
             #     if self.p1.get_button(i):
@@ -202,6 +214,8 @@ class XBoxController:
             self.Y_pressed,
             self.LB_pressed,
             self.RB_pressed,
+            self.P1_pressed,
+            self.P2_pressed,
             left_trigger,
             right_trigger,
             up_down,
@@ -215,6 +229,8 @@ class XBoxController:
         Y_pressed = False
         LB_pressed = False
         RB_pressed = False
+        P1_pressed = False
+        P2_pressed = False
         up_down = 0
         left_right = 0
         try:
@@ -226,6 +242,8 @@ class XBoxController:
                 Y_pressed,
                 LB_pressed,
                 RB_pressed,
+                P1_pressed,
+                P2_pressed,
                 self.last_left_trigger,
                 self.last_right_trigger,
                 up_down,
@@ -247,6 +265,8 @@ class XBoxController:
             up_down == -1,
             left_right == -1,
             left_right == 1,
+            P1_pressed,
+            P2_pressed,
         )
 
         return (

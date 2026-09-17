@@ -25,24 +25,27 @@ import os
 class ExpressionController:
     """Expression control wrapper with auto-reset. Uses HWI's ESP32 peripherals."""
     
-    def __init__(self, esp32_peripherals, reset_delay: float = 5.0):
+    def __init__(self, esp32_peripherals, reset_delay: float = 5.0, sounds=None):
         self.esp32 = esp32_peripherals
+        self.sounds = sounds
         self.current = "neutral"
         self.reset_delay = reset_delay
         self._reset_timer = None
-    
+
     def set(self, name: str):
         if name not in EXPRESSIONS or self.esp32 is None:
             return
         if name == self.current:
             return
-            
+
         if self._reset_timer:
             self._reset_timer.cancel()
             self._reset_timer = None
-        
+
         expr = EXPRESSIONS[name]
         self.esp32.set_all(expr.left_antenna, expr.right_antenna, expr.eye_mode, expr.projector)
+        if self.sounds is not None and expr.sound:
+            self.sounds.play(expr.sound)
         self.current = name
         print(f"Expression: {name}")
         
@@ -170,7 +173,9 @@ class RLWalk:
         # ESP32-based expressions (eyes, antennas, projector via virtual servo)
         self.expression_controller = None
         if self.hwi.esp32 is not None:
-            self.expression_controller = ExpressionController(self.hwi.esp32, reset_delay=5.0)
+            self.expression_controller = ExpressionController(
+                self.hwi.esp32, reset_delay=5.0, sounds=getattr(self, "sounds", None)
+            )
             print("ESP32 expressions enabled (D-pad: short/long press)")
 
     def _try_connect_controller(self, silent=False):

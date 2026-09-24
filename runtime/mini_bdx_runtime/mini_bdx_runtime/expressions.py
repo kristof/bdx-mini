@@ -18,13 +18,14 @@ class Expression:
     """Defines a complete robot expression."""
     name: str
     eye_mode: int
-    left_antenna: float = 0.0         # Static position (used if no animation)
-    right_antenna: float = 0.0        # Static position (used if no animation)
+    left_antenna: float = 0.0         # Static position (animation centre)
+    right_antenna: float = 0.0        # Static position (animation centre)
     projector: bool = False
     sound: Optional[str] = None
     duration: Optional[float] = None  # How long to hold the expression
     animation: Optional[str] = None   # Default antenna animation pattern
     animation_speed: float = 1.0      # Animation speed multiplier
+    animation_amplitude: float = 1.0  # Scales the pattern around the static position
 
 
 # Predefined expressions (one per eye mode)
@@ -47,6 +48,7 @@ EXPRESSIONS = {
         sound="happy.wav",
         animation="bounce",  # Happy bouncing antennas
         animation_speed=1.5,
+        animation_amplitude=0.4,
     ),
     "angry": Expression(
         name="angry",
@@ -55,8 +57,9 @@ EXPRESSIONS = {
         right_antenna=0.7,
         projector=False,
         sound="angry.wav",
-        animation="wiggle",  # Tense wiggling
+        animation="wiggle",  # Tense trembling while pointed forward
         animation_speed=2.0,
+        animation_amplitude=0.5,
     ),
     "squint": Expression(
         name="squint",
@@ -76,6 +79,7 @@ EXPRESSIONS = {
         sound="suspicious.wav",
         animation="searching",  # Looking around
         animation_speed=0.5,
+        animation_amplitude=0.4,
     ),
     "sleepy": Expression(
         name="sleepy",
@@ -84,7 +88,9 @@ EXPRESSIONS = {
         right_antenna=-0.2,
         projector=False,
         sound="sleepy.wav",
-        animation=None,  # No animation - droopy static
+        animation="nod",  # Slow droop and recover, nodding off
+        animation_speed=0.3,
+        animation_amplitude=0.6,
     ),
     "dizzy": Expression(
         name="dizzy",
@@ -95,6 +101,7 @@ EXPRESSIONS = {
         sound="dizzy.wav",
         animation="alternate",  # Wobbly confusion
         animation_speed=1.5,
+        animation_amplitude=0.8,
     ),
 }
 
@@ -127,6 +134,8 @@ class Expressions:
         self._animation_stop_event = Event()
         self._current_animation: Optional[str] = None
         self._animation_speed: float = 1.0
+        self._animation_base: tuple = (0.0, 0.0)
+        self._animation_amplitude: float = 1.0
         
         # Verify ESP32 peripherals are available
         if hwi.esp32 is None:
@@ -196,7 +205,11 @@ class Expressions:
             
             # Handle antennas: use animation if available, otherwise static position
             if use_animation and expr.animation:
-                self.start_antenna_animation(expr.animation, expr.animation_speed)
+                self.start_antenna_animation(
+                    expr.animation, expr.animation_speed,
+                    base=(expr.left_antenna, expr.right_antenna),
+                    amplitude=expr.animation_amplitude,
+                )
             else:
                 self.hwi.esp32.set_antennas(expr.left_antenna, expr.right_antenna)
             
@@ -300,7 +313,8 @@ class Expressions:
     
     # ==================== THREADED ANIMATIONS ====================
     
-    def start_antenna_animation(self, pattern: str = "wave", speed: float = 1.0):
+    def start_antenna_animation(self, pattern: str = "wave", speed: float = 1.0,
+                                base: tuple = (0.0, 0.0), amplitude: float = 1.0):
         """
         Start a non-blocking antenna animation in background thread.
         
@@ -308,6 +322,8 @@ class Expressions:
             pattern: Animation pattern ("wave", "bounce", "alternate", "wiggle", 
                      "excited", "searching", "nod")
             speed: Animation speed multiplier
+            base: (left, right) position the pattern moves around
+            amplitude: Scale applied to the pattern before adding it to base
         """
         # Stop any existing animation
         self.stop_antenna_animation()
@@ -315,6 +331,8 @@ class Expressions:
         self._animation_stop_event.clear()
         self._current_animation = pattern
         self._animation_speed = speed
+        self._animation_base = base
+        self._animation_amplitude = amplitude
         
         self._animation_thread = Thread(target=self._animation_loop, daemon=True)
         self._animation_thread.start()
@@ -360,7 +378,11 @@ class Expressions:
                 left, right = self._calculate_antenna_position(
                     self._current_animation, t
                 )
-                self.hwi.esp32.set_antennas(left, right)
+                base_left, base_right = self._animation_base
+                self.hwi.esp32.set_antennas(
+                    base_left + left * self._animation_amplitude,
+                    base_right + right * self._animation_amplitude,
+                )
             except Exception as e:
                 print(f"Animation error: {e}")
                 break

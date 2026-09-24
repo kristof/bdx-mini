@@ -17,7 +17,7 @@ from mini_bdx_runtime.antennas import Antennas
 from mini_bdx_runtime.projector import Projector
 from mini_bdx_runtime.rl_utils import make_action_dict, LowPassActionFilter
 from mini_bdx_runtime.duck_config import DuckConfig
-from mini_bdx_runtime.expressions import EXPRESSIONS
+from mini_bdx_runtime.expressions import EXPRESSIONS, Expressions
 
 import os
 
@@ -25,15 +25,14 @@ import os
 class ExpressionController:
     """Expression control wrapper with auto-reset. Uses HWI's ESP32 peripherals."""
     
-    def __init__(self, esp32_peripherals, reset_delay: float = 5.0, sounds=None):
-        self.esp32 = esp32_peripherals
-        self.sounds = sounds
+    def __init__(self, hwi, reset_delay: float = 5.0, sounds=None):
+        self.expressions = Expressions(hwi, sounds)
         self.current = "neutral"
         self.reset_delay = reset_delay
         self._reset_timer = None
 
     def set(self, name: str):
-        if name not in EXPRESSIONS or self.esp32 is None:
+        if name not in EXPRESSIONS:
             return
         if name == self.current:
             return
@@ -42,10 +41,8 @@ class ExpressionController:
             self._reset_timer.cancel()
             self._reset_timer = None
 
-        expr = EXPRESSIONS[name]
-        self.esp32.set_all(expr.left_antenna, expr.right_antenna, expr.eye_mode, expr.projector)
-        if self.sounds is not None and expr.sound:
-            self.sounds.play(expr.sound)
+        # Starts the expression's antenna animation (if any) around its static pose
+        self.expressions.set(name)
         self.current = name
         print(f"Expression: {name}")
         
@@ -61,7 +58,7 @@ class ExpressionController:
         if self._reset_timer:
             self._reset_timer.cancel()
             self._reset_timer = None
-        self.set("neutral")
+        self.expressions.cleanup()
 
 
 HOME_DIR = os.path.expanduser("~")
@@ -176,7 +173,7 @@ class RLWalk:
         self.expression_controller = None
         if self.hwi.esp32 is not None:
             self.expression_controller = ExpressionController(
-                self.hwi.esp32, reset_delay=5.0, sounds=getattr(self, "sounds", None)
+                self.hwi, reset_delay=5.0, sounds=getattr(self, "sounds", None)
             )
             print("ESP32 expressions enabled (D-pad: short/long press)")
 

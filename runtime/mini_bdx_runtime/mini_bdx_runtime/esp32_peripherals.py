@@ -14,6 +14,8 @@ Sends a newline-terminated ASCII line per state update:
     S,<eye_mode>,<projector 0|1>,<left_antenna>,<right_antenna>\\n
 """
 
+import threading
+
 import serial
 
 
@@ -61,6 +63,10 @@ class ESP32Peripherals:
         self._eye_mode = self.EYE_MODE_NORMAL
         self._projector_on = False
 
+        # Antenna animations write from a background thread, so serialise writes
+        # to keep each state line intact on the wire.
+        self._write_lock = threading.Lock()
+
     def _send_state(self) -> bool:
         """Send the full peripheral state as one line over USB serial."""
         if not self._connected:
@@ -74,7 +80,8 @@ class ESP32Peripherals:
         )
 
         try:
-            self._serial.write(line.encode("ascii"))
+            with self._write_lock:
+                self._serial.write(line.encode("ascii"))
             return True
         except serial.SerialException as e:
             print(f"ESP32Peripherals: write failed ({e})")

@@ -31,6 +31,11 @@ class ESP32Peripherals:
     EYE_MODE_SLEEPY = 5
     EYE_MODE_DIZZY = 6
 
+    # The antenna servos are mounted mirrored, so the right one is inverted to
+    # make equal logical positions move both antennas the same way.
+    LEFT_ANTENNA_SIGN = 1
+    RIGHT_ANTENNA_SIGN = -1
+
     def __init__(self, port: str = "/dev/serial0", baudrate: int = 115200):
         """
         Initialize ESP32 peripherals controller.
@@ -64,7 +69,8 @@ class ESP32Peripherals:
         projector_bit = 1 if self._projector_on else 0
         line = (
             f"S,{self._eye_mode},{projector_bit},"
-            f"{self._left_antenna:.3f},{self._right_antenna:.3f}\n"
+            f"{self._left_antenna * self.LEFT_ANTENNA_SIGN:.3f},"
+            f"{self._right_antenna * self.RIGHT_ANTENNA_SIGN:.3f}\n"
         )
 
         try:

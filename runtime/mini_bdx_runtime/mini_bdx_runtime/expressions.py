@@ -51,8 +51,8 @@ EXPRESSIONS = {
     "angry": Expression(
         name="angry",
         eye_mode=ESP32Peripherals.EYE_MODE_ANGRY,
-        left_antenna=-0.7,
-        right_antenna=-0.7,
+        left_antenna=0.7,   # Pointed forward, aggressive
+        right_antenna=0.7,
         projector=False,
         sound="angry.wav",
         animation="wiggle",  # Tense wiggling
